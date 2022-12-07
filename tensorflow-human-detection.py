@@ -6,21 +6,33 @@ import numpy as np
 import tensorflow as tf
 import cv2
 import time
+import mss
+from multiprocessing import Process, Queue
+from math import ceil
+from time import sleep
+
+gpus = tf.config.experimental.list_physical_devices('GPU')
+for gpu in gpus:
+    tf.config.experimental.set_memory_growth(gpu, True)
+
+
+model_path = '/home/auqua/Neural-Network/human-detection-cnn/faster_rcnn_inception_v2_coco_2018_01_28/frozen_inference_graph.pb'
+threshold = 0.7
 
 TARGET_CLASSES = {
     1: "person",
     2: "bicycle",
-    # 3: "car",
+    3: "car",
     17: "cat",
     18: "dog",
     27: "backpack",
     28: "umbrella",
-    # 72: "tv",
-    # 73: "laptop",
-    # 74: "mouse",
-    # 75: "remote",
-    # 76: "keyboard",
-    # 77: "cell phone",
+    72: "tv",
+    73: "laptop",
+    74: "mouse",
+    75: "remote",
+    76: "keyboard",
+    77: "cell phone",
     84: "book",
 }
 
@@ -60,7 +72,7 @@ class DetectorAPI:
             feed_dict={self.image_tensor: image_np_expanded})
         end_time = time.time()
 
-        print("Elapsed Time:", end_time - start_time)
+        # print("Elapsed Time:", end_time - start_time)
 
         im_height, im_width, _ = image.shape
         boxes_list = [None for i in range(boxes.shape[1])]
@@ -74,23 +86,17 @@ class DetectorAPI:
 
     def close(self):
         self.sess.close()
-        self.default_graph.close
+        self.default_graph.close()
 
-def calculate_intersection(classes, boxes, scores):
-    
 
-if __name__ == "__main__":
-    import mss
-    # model_path = 'faster_rcnn_inception_v2_coco_2018_01_28/frozen_inference_graph.pb'
-    model_path = '/home/auqua/Neural-Network/human-detection-cnn/faster_rcnn_inception_v2_coco_2018_01_28/frozen_inference_graph.pb'
+def manager(cam_queue, camera: str = 'view-IP1.mp4', cam_index=0):
     odapi = DetectorAPI(path_to_ckpt=model_path)
-    threshold = 0.7
-    cap = cv2.VideoCapture('/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4')
-    # bounding_box = {'top': 0, 'left': 0, 'width': 1920, 'height': 1080}
+    cap = cv2.VideoCapture(camera)
+    bounding_box = {'top': 0, 'left': 0, 'width': 1920, 'height': 1080}
     prev_frame_time = 0
     new_frame_time = 0
 
-    sct = mss.mss()
+    # sct = mss.mss()
     while True:
         new_frame_time = time.time()
         fps = 1 / (new_frame_time - prev_frame_time)
@@ -125,7 +131,126 @@ if __name__ == "__main__":
                             2,
                             cv2.LINE_AA)
 
-        cv2.imshow("preview", img)
-        key = cv2.waitKey(1)
-        if key & 0xFF == ord('q'):
+        while cam_queue.full():
+            pass
+            sleep(.1)
+        img = cv2.resize(img, [640, 480])
+        cam_queue.put(img)
+
+
+def assemble_layouts(layout, n_figures):
+    layouts = []
+    for setting in layout:
+        if "adjust" in setting:
+            diff = 0
+            for layout in layouts:
+                diff += layout[0] * layout[1]
+            remaining_figures = n_figures - diff
+            layouts.extend(get_rect_layouts(remaining_figures))
             break
+        else:
+            layouts.append((int(setting[0]), int(setting[1])))
+
+    diff = n_figures - len(layouts)  # might be dangerous
+    if diff and "adjust" not in layout:
+        for _ in range(diff):
+            layouts.append(layouts[-1])
+
+    return layouts
+
+
+def get_rect_layouts(n_figures):
+    layouts = []
+    max_lines = 2
+    max_columns = 4
+    max_figs = 8
+    while n_figures:
+        layouts.append(
+            (
+                max_lines, ceil(n_figures / max_lines) if n_figures < max_figs else max_columns
+            )
+        )
+        n_figures -= n_figures if n_figures < max_figs else max_figs
+
+    return layouts
+
+
+def get_concat(
+        figures,
+        layouts
+):
+    figs = []
+    counter = 0
+    while figures:
+        layout = layouts[counter]
+        n_rows = layout[0]
+        n_columns = layout[1]
+        slice_size = n_rows * n_columns
+        fig_slice = figures[:slice_size]
+        del figures[:slice_size]
+        org = []
+        for current_row in range(1, n_rows + 1):
+            org.append(fig_slice[n_columns * (current_row - 1):n_columns * current_row])
+        figs.append(concat_tile_resize(org))
+        counter += 1
+    return figs
+
+
+def vconcat_resize_min(im_list, interpolation=cv2.INTER_CUBIC):
+    w_min = min(im.shape[1] for im in im_list)
+    im_list_resize = [cv2.resize(im, (w_min, int(im.shape[0] * w_min / im.shape[1])), interpolation=interpolation)
+                      for im in im_list]
+    return cv2.vconcat(im_list_resize)
+
+
+def hconcat_resize_min(im_list, interpolation=cv2.INTER_CUBIC):
+    h_min = min(im.shape[0] for im in im_list)
+    im_list_resize = [cv2.resize(im, (int(im.shape[1] * h_min / im.shape[0]), h_min), interpolation=interpolation)
+                      for im in im_list]
+    return cv2.hconcat(im_list_resize)
+
+
+def concat_tile_resize(im_list_2d, interpolation=cv2.INTER_CUBIC):
+    im_list_v = [hconcat_resize_min(im_list_h, interpolation=interpolation) for im_list_h in im_list_2d]
+    return vconcat_resize_min(im_list_v, interpolation=interpolation)
+
+
+if __name__ == "__main__":
+    # cameras = ['/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4', '/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4', '/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4']
+    cameras = ['/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4']
+    threads = []
+    queues = []
+    counter = 0
+    for cam in cameras:
+        queues.append(Queue(1))
+        threads.append(Process(target=manager, args=(queues[-1], cam, counter)))
+        counter += 1
+    for index, thread in enumerate(threads):
+        thread.start()
+        print(f"camera {index} started")
+
+    while True:
+        if all([queue.full() for queue in queues]):
+            imgs = {}
+            for index, queue in enumerate(queues):
+                imgs.update({index: queue.get(True)})
+
+            layouts = assemble_layouts(["adjust"], len(imgs.keys()))
+
+            if len(list(imgs.values())) > 1:
+                figs = get_concat(
+                    [fig for fig in imgs.values()],
+                    layouts,
+                )
+                img = cv2.resize(figs[0], (1280, 720))
+            else:
+                img = imgs.get(0)
+            cv2.imshow(f"cameras", img)
+            key = cv2.waitKey(1)
+            if key & 0xFF == ord('q'):
+                break
+        else:
+            sleep(.1)
+        
+    for thread in threads:
+        thread.join()
