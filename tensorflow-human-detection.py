@@ -76,6 +76,57 @@ class DetectorAPI:
         self.sess.close()
         self.default_graph.close
 
+def calculate_intersection(image, camera, detections, xmax_hand, xmin_hand, ymax_hand, ymin_hand, direita = True):
+    #Variable which tells if the hands and objects bounding boxes are being intersected
+    intersecao = False
+
+    #intersecao_temp has the purpose of comparing if in the previous time step an intersection was detected. isHolding will be true if the intersection disappearead while
+    #the object was being intersected with the hand
+    global intersecao_temp_right, intersecao_temp_left, isHoldingRight, isHoldingLeft
+
+    for clas, score, box in zip(detections['detection_classes'], detections['detection_scores'], detections['detection_boxes']):
+        if (camera.category_index.get(clas).get('name')) == parts[-1] and score > .30:
+        # if (camera.category_index.get(clas).get('name')) == pecas[-1] and score > .30:
+
+            #Coordinates of the objects bounding boxes
+            ymin,xmin,ymax,xmax = box[0]*camera.resolution[1],box[1]*camera.resolution[0],(box[2])*camera.resolution[1],(box[3])*camera.resolution[0]
+
+            #Calculation of the intersections
+
+            #1 point of the hand's BB is inserted into the object's BB
+            if (xmax_hand>xmin and xmax_hand<xmax and ymin_hand < ymax and ymin_hand > ymin):
+                intersecao = True
+            if (xmax_hand > xmin and xmax_hand < xmax and ymax_hand > ymin and ymax_hand < ymax):
+                intersecao = True
+            if (xmin_hand < xmax and xmin_hand> xmin and ymax_hand > ymin and ymax_hand < ymax):
+                intersecao = True
+            if (xmin_hand < xmax and xmin_hand > xmin and ymin_hand < ymax and ymin_hand > ymin):
+                intersecao = True
+
+            #2 points from the object's BB are inserted from the hand's BB
+            if (xmax_hand > xmin and xmax_hand < xmax and ymax_hand > ymax and ymin_hand < ymin):
+                intersecao = True
+            if (xmin_hand < xmin and xmax_hand > xmax and ymax_hand > ymin and ymax_hand < ymax):
+                intersecao = True
+            if (xmin_hand < xmax and xmin_hand > xmin and ymin_hand < ymin and ymax_hand > ymax):
+                intersecao = True
+            if (xmin_hand < xmin and xmax_hand > xmax and ymax_hand > ymax and ymin_hand < ymax):
+                intersecao = True
+
+            #All points of the object's BB are inserted into the hand's BB
+            if (xmax_hand > xmax and xmin_hand < xmin and ymax_hand > ymax and ymin_hand < ymin):
+                intersecao = True
+
+            #All points of the hand's BB are inserted inside the object's BB
+            if (xmax_hand < xmax and xmin_hand > xmin and ymax_hand < ymax and ymin_hand > ymin):
+                intersecao = True
+
+            #Drwans on the screen the information of which objects is being hold
+            if intersecao == True:
+                cv2.rectangle(image, (0, 50), (camera.resolution[0], 80), (50,50,50), -1)
+                holding_message = 'Right hand holding ' + str(parts[-1]) if direita else 'Left hand holding ' + str(parts[-1])
+                cv2.putText(image, holding_message, (10,70), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
+
 if __name__ == "__main__":
     import mss
     # model_path = 'faster_rcnn_inception_v2_coco_2018_01_28/frozen_inference_graph.pb'
