@@ -216,7 +216,7 @@ def concat_tile_resize(im_list_2d, interpolation=cv2.INTER_CUBIC):
 
 
 if __name__ == "__main__":
-    # cameras = ['/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4', '/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4', '/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4']
+    # cameras = ['/home/auqua/Neural-Network/human-detection-cnn/videos/09152008flight2tape1_2.mpg', '/home/auqua/Neural-Network/human-detection-cnn/videos/09152008flight2tape1_5.mpg', '/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4']
     cameras = ['/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4']
     threads = []
     queues = []
@@ -253,4 +253,6 @@ if __name__ == "__main__":
             sleep(.1)
         
     for thread in threads:
+        # print('it is here')
         thread.join()
+        # print('it is here')
