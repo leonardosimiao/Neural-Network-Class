@@ -7,7 +7,7 @@ import tensorflow as tf
 import cv2
 import time
 
-TARGET_CLASSES = {
+TARGET_CLASSES = {  # Classes shown here will be displayed in video
     1: "person",
     2: "bicycle",
     # 3: "car",
@@ -75,9 +75,6 @@ class DetectorAPI:
     def close(self):
         self.sess.close()
         self.default_graph.close
-
-def calculate_intersection(classes, boxes, scores):
-    
 
 if __name__ == "__main__":
     import mss
