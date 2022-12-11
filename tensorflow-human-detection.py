@@ -4,6 +4,7 @@
 
 import numpy as np
 import tensorflow as tf
+import mss
 import cv2
 import time
 
@@ -60,7 +61,7 @@ class DetectorAPI:
             feed_dict={self.image_tensor: image_np_expanded})
         end_time = time.time()
 
-        print("Elapsed Time:", end_time - start_time)
+        # print("Elapsed Time:", end_time - start_time)
 
         im_height, im_width, _ = image.shape
         boxes_list = [None for i in range(boxes.shape[1])]
@@ -76,59 +77,94 @@ class DetectorAPI:
         self.sess.close()
         self.default_graph.close
 
-def calculate_intersection(image, camera, detections, xmax_hand, xmin_hand, ymax_hand, ymin_hand, direita = True):
+def calculate_intersection(i, classes_i, boxes_i, data):
     #Variable which tells if the hands and objects bounding boxes are being intersected
-    intersecao = False
+    # boxes, scores, classes = data
+    boxes = [item[0] for item in data]
+    scores = [item[1] for item in data]
+    classes = [item[2] for item in data]
 
-    #intersecao_temp has the purpose of comparing if in the previous time step an intersection was detected. isHolding will be true if the intersection disappearead while
-    #the object was being intersected with the hand
-    global intersecao_temp_right, intersecao_temp_left, isHoldingRight, isHoldingLeft
+    ymin_i,xmin_i,ymax_i,xmax_i  = boxes_i[0],boxes_i[1],boxes_i[2],boxes_i[3]
+    # intersection = True 
 
-    for clas, score, box in zip(detections['detection_classes'], detections['detection_scores'], detections['detection_boxes']):
-        if (camera.category_index.get(clas).get('name')) == parts[-1] and score > .30:
-        # if (camera.category_index.get(clas).get('name')) == pecas[-1] and score > .30:
-
-            #Coordinates of the objects bounding boxes
-            ymin,xmin,ymax,xmax = box[0]*camera.resolution[1],box[1]*camera.resolution[0],(box[2])*camera.resolution[1],(box[3])*camera.resolution[0]
-
+    for ind in range(len(data)):
+        # print(len(data))
+        
+        if ind == i:
+            pass
+        
+        # ymin,xmin,ymax,xmax = boxes[ind][0],boxes[ind][1],boxes[ind][2],boxes[ind][3]
+        boxx = boxes[ind]
+        ymin = boxx[0]
+        xmin = boxx[1] 
+        ymax = boxx[2] 
+        xmax = boxx[3]
             #Calculation of the intersections
+        if ((xmin_i >= xmax) or (xmax_i <= xmin) or (ymin_i >= ymax) or (ymax_i <= ymin)):
+            intersection = False
+        else:
+            intersection = True
+            # print(xmin, xmax, ymin, ymax)
+            # print(xmin_i, xmax_i, ymin_i, ymax_i)
+            # print(classes[ind])
 
-            #1 point of the hand's BB is inserted into the object's BB
-            if (xmax_hand>xmin and xmax_hand<xmax and ymin_hand < ymax and ymin_hand > ymin):
-                intersecao = True
-            if (xmax_hand > xmin and xmax_hand < xmax and ymax_hand > ymin and ymax_hand < ymax):
-                intersecao = True
-            if (xmin_hand < xmax and xmin_hand> xmin and ymax_hand > ymin and ymax_hand < ymax):
-                intersecao = True
-            if (xmin_hand < xmax and xmin_hand > xmin and ymin_hand < ymax and ymin_hand > ymin):
-                intersecao = True
+        if classes_i == 2:
+            print(f'bike: {xmin_i}, {xmax_i}, {ymin_i}, {ymax_i}')
+            print(intersection)
+            for item in boxes:
+                print(f'{item[1]}, {item[3]}, {item[0]}, {item[2]}')
 
-            #2 points from the object's BB are inserted from the hand's BB
-            if (xmax_hand > xmin and xmax_hand < xmax and ymax_hand > ymax and ymin_hand < ymin):
-                intersecao = True
-            if (xmin_hand < xmin and xmax_hand > xmax and ymax_hand > ymin and ymax_hand < ymax):
-                intersecao = True
-            if (xmin_hand < xmax and xmin_hand > xmin and ymin_hand < ymin and ymax_hand > ymax):
-                intersecao = True
-            if (xmin_hand < xmin and xmax_hand > xmax and ymax_hand > ymax and ymin_hand < ymax):
-                intersecao = True
+        return intersection
 
-            #All points of the object's BB are inserted into the hand's BB
-            if (xmax_hand > xmax and xmin_hand < xmin and ymax_hand > ymax and ymin_hand < ymin):
-                intersecao = True
+# def calculate_intersection(i, boxes, classes, num):
+#     #Variable which tells if the hands and objects bounding boxes are being intersected
 
-            #All points of the hand's BB are inserted inside the object's BB
-            if (xmax_hand < xmax and xmin_hand > xmin and ymax_hand < ymax and ymin_hand > ymin):
-                intersecao = True
+#     ymin_i,xmin_i,ymax_i,xmax_i  = boxes[i][0],boxes[i][1],boxes[i][2],boxes[i][3]
+#     intersection = False 
 
-            #Drwans on the screen the information of which objects is being hold
-            if intersecao == True:
-                cv2.rectangle(image, (0, 50), (camera.resolution[0], 80), (50,50,50), -1)
-                holding_message = 'Right hand holding ' + str(parts[-1]) if direita else 'Left hand holding ' + str(parts[-1])
-                cv2.putText(image, holding_message, (10,70), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
+#     for ind in range(num):
+        
+#         if ind == i:
+#             pass
+        
+#         ymin,xmin,ymax,xmax = boxes[ind][0],boxes[ind][1],boxes[ind][2],boxes[ind][3]
+
+#             #Calculation of the intersections
+
+#             #1 point of the hand's BB is inserted into the object's BB
+#         if (xmax_i>xmin and xmax_i<xmax and ymin_i < ymax and ymin_i > ymin):
+#             intersection = True
+#         if (xmax_i > xmin and xmax_i < xmax and ymax_i > ymin and ymax_i < ymax):
+#             intersection = True
+#         if (xmin_i < xmax and xmin_i> xmin and ymax_i > ymin and ymax_i < ymax):
+#             intersection = True
+#         if (xmin_i < xmax and xmin_i > xmin and ymin_i < ymax and ymin_i > ymin):
+#             intersection = True
+
+#         #2 points from the object's BB are inserted from the hand's BB
+#         if (xmax_i > xmin and xmax_i < xmax and ymax_i > ymax and ymin_i < ymin):
+#             intersection = True
+#         if (xmin_i < xmin and xmax_i > xmax and ymax_i > ymin and ymax_i < ymax):
+#             intersection = True
+#             print('sim')
+#             if classes[i] == 2:
+#                 print('bike sim')
+#         if (xmin_i < xmax and xmin_i > xmin and ymin_i < ymin and ymax_i > ymax):
+#             intersection = True
+#         if (xmin_i < xmin and xmax_i > xmax and ymax_i > ymax and ymin_i < ymax):
+#             intersection = True
+
+#         #All points of the object's BB are inserted into the hand's BB
+#         if (xmax_i > xmax and xmin_i < xmin and ymax_i > ymax and ymin_i < ymin):
+#             intersection = True
+
+#         #All points of the hand's BB are inserted inside the object's BB
+#         if (xmax_i < xmax and xmin_i > xmin and ymax_i < ymax and ymin_i > ymin):
+#             intersection = True
+
+#         return intersection
 
 if __name__ == "__main__":
-    import mss
     # model_path = 'faster_rcnn_inception_v2_coco_2018_01_28/frozen_inference_graph.pb'
     model_path = '/home/auqua/Neural-Network/human-detection-cnn/faster_rcnn_inception_v2_coco_2018_01_28/frozen_inference_graph.pb'
     odapi = DetectorAPI(path_to_ckpt=model_path)
@@ -138,7 +174,14 @@ if __name__ == "__main__":
     prev_frame_time = 0
     new_frame_time = 0
 
+    buffer_human = []
+    buffer_object = []
+    BUFFER_SIZE = 100
+
     sct = mss.mss()
+    # count = 1
+    # while count > 0:
+    #     count = -1
     while True:
         new_frame_time = time.time()
         fps = 1 / (new_frame_time - prev_frame_time)
@@ -154,22 +197,56 @@ if __name__ == "__main__":
             break
         img = cv2.resize(img, (1280, 720))
         boxes, scores, classes, num = odapi.processFrame(img)
+
+        data_human = [item for item in zip(boxes[:num], scores[:num], classes[:num]) if (item[2]==1 and item[1]>threshold/2)]
+        data_object = [item for item in zip(boxes[:num], scores[:num], classes[:num]) if (item[2]!=1 and item[1]>threshold/2)]
+
+        # print(f'num: {num}, human:{len(data_human)}, obj:{len(data_object)} , class:{sum(classes)}')
+
+        buffer_human = data_human + buffer_human
+        if len(buffer_human) >= BUFFER_SIZE:
+            buffer_human = buffer_human[:BUFFER_SIZE]
+        
+        buffer_object = data_object + buffer_object
+        if len(buffer_object) >= BUFFER_SIZE:
+            buffer_object = buffer_object[:BUFFER_SIZE]
+        # for index in range(len(data_full)):
+            # print(data_full[index])
+        # print(f'Comparacao: {boxes[3]}, {scores[3]}, {classes[3]}')
+        # boxes_nonzero = [list_item for list_item in boxes if sum(list_item) != 0]
+        # scores_nonzero = [item for item in scores if item != 0]
+
+        # boxes_nonzero = boxes[:num]
+
         cv2.putText(img, fps, (7, 70), 1, 3, (100, 255, 0), 3, cv2.LINE_AA)
 
         # Visualization of the results of a detection.
 
-        for i in range(len(boxes)):
+        for i in range(num):  # range(len(boxes)):
+            # Changes color of intersecting people and objects
+            if classes[i] == 1: # if human
+                doesIntersect = calculate_intersection(i, classes[i], boxes[i], buffer_object) # calculate if intersect with object
+            else:
+                doesIntersect = calculate_intersection(i, classes[i], boxes[i], buffer_human)
+            # print(f'ymin={boxes[i][0]},xmin={boxes[i][1]},ymax={boxes[i][2]}, xmax = {boxes[i][3]}')
+            # if classes[i] == 2:
+                # print(color)
             # Class 1 represents human
             # if classes[i] == 1 and scores[i] > threshold:
+            if doesIntersect:
+                color = (0, 0, 255)
+            else:
+                color = (255, 0 , 0)
+            
             if classes[i] in TARGET_CLASSES.keys() and scores[i] > threshold:
                 box = boxes[i]
-                cv2.rectangle(img, (box[1], box[0]), (box[3], box[2]), (255, 0, 0), 2)
+                cv2.rectangle(img, (box[1], box[0]), (box[3], box[2]), color, 2)
                 cv2.putText(img,
                             TARGET_CLASSES.get(classes[i]),
                             (box[1], box[0]),
                             1,
                             2,
-                            (255, 0, 0),
+                            color,  # (255, 0, 0),
                             2,
                             cv2.LINE_AA)
 
