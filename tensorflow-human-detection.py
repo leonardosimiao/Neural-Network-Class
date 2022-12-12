@@ -11,7 +11,7 @@ import time
 TARGET_CLASSES = {  # Classes shown here will be displayed in video
     1: "person",
     2: "bicycle",
-    # 3: "car",
+    3: "car",
     17: "cat",
     18: "dog",
     27: "backpack",
@@ -115,7 +115,6 @@ def calculate_intersection(i, classes_i, boxes_i, data):
             #         file.write('\n')
             #     file.write('End \n \n \n \n \n')
             # file.close()
-
     return intersection
 
 
@@ -123,8 +122,11 @@ if __name__ == "__main__":
     # model_path = 'faster_rcnn_inception_v2_coco_2018_01_28/frozen_inference_graph.pb'
     model_path = '/home/auqua/Neural-Network/human-detection-cnn/faster_rcnn_inception_v2_coco_2018_01_28/frozen_inference_graph.pb'
     odapi = DetectorAPI(path_to_ckpt=model_path)
-    threshold = 0.7
-    cap = cv2.VideoCapture('/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4')
+    threshold = 0.5  # 0.7
+    cap = cv2.VideoCapture('/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000001.mp4')
+    # cap = cv2.VideoCapture('/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000102.mp4')
+    # cap = cv2.VideoCapture('/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000101.mp4')
+    # cap = cv2.VideoCapture('/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4')
     # bounding_box = {'top': 0, 'left': 0, 'width': 1920, 'height': 1080}
     prev_frame_time = 0
     new_frame_time = 0
@@ -174,12 +176,13 @@ if __name__ == "__main__":
 
         for i in range(num):  # range(len(boxes)):
             # Changes color of intersecting people and objects
+
             if classes[i] == 1: # if human
                 doesIntersect = calculate_intersection(i, classes[i], boxes[i], buffer_object) # calculate if intersect with object
             # else:
             elif classes[i] in TARGET_CLASSES.keys():
                 doesIntersect = calculate_intersection(i, classes[i], boxes[i], buffer_human)
-
+            
             # Class 1 represents human
             # if classes[i] == 1 and scores[i] > threshold:
             if doesIntersect:
