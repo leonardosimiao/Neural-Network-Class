@@ -19,21 +19,72 @@ for gpu in gpus:
 model_path = '/home/auqua/Neural-Network/human-detection-cnn/faster_rcnn_inception_v2_coco_2018_01_28/frozen_inference_graph.pb'
 threshold = 0.7
 
+# TARGET_CLASSES = {
+#     1: "person",
+#     2: "bicycle",
+#     3: "car",
+#     17: "cat",
+#     18: "dog",
+#     27: "backpack",
+#     28: "umbrella",
+#     72: "tv",
+#     73: "laptop",
+#     74: "mouse",
+#     75: "remote",
+#     76: "keyboard",
+#     77: "cell phone",
+#     84: "book",
+# }
+
 TARGET_CLASSES = {
-    1: "person",
-    2: "bicycle",
-    3: "car",
-    17: "cat",
-    18: "dog",
-    27: "backpack",
-    28: "umbrella",
-    72: "tv",
-    73: "laptop",
-    74: "mouse",
-    75: "remote",
-    76: "keyboard",
-    77: "cell phone",
-    84: "book",
+    1: {
+        "id": "person",
+        "weight": 10,
+    },
+    2: {
+        "id": "bicycle",
+        "weight": 3,
+    },
+    3: {
+        "id": "car",
+        "weight": 9,
+    },
+    27: {
+        "id": "backpack",
+        "weight": 1,
+    },
+    28: {
+        "id": "umbrella",
+        "weight": 2,
+    },
+    72: {
+        "id": "tv",
+        "weight": 5,
+    },
+    73: {
+        "id": "laptop",
+        "weight": 6
+    },
+    74: {
+        "id": "mouse",
+        "weight": 4,
+    },
+    75: {
+        "id": "remote",
+        "weight": 1
+    },
+    76: {
+        "id": "keyboard",
+        "weight": 1,
+    },
+    77: {
+        "id": "cell phone",
+        "weight": 3,
+    },
+    84: {
+        "id": "book",
+        "weight": 1,
+    },
 }
 
 
@@ -102,7 +153,12 @@ def manager(cam_queue, camera: str = 'view-IP1.mp4', cam_index=0):
     BUFFER_SIZE = 20
 
     # sct = mss.mss()
+    score = 0
+    intersection_log = []
+    log_interval_counter = 0
+    VERBOSE = 1 #how many logs per second
     while True:
+        # score = 0
         new_frame_time = time.time()
         fps = 1 / (new_frame_time - prev_frame_time)
         prev_frame_time = new_frame_time
@@ -132,7 +188,7 @@ def manager(cam_queue, camera: str = 'view-IP1.mp4', cam_index=0):
         if len(buffer_object) >= BUFFER_SIZE:
             buffer_object = buffer_object[:BUFFER_SIZE]
         # Visualization of the results of a detection.
-
+        doesIntersect = False
         for i in range(num):  # range(len(boxes)):
             if classes[i] == 1: # if human
                 doesIntersect = calculate_intersection(i, classes[i], boxes[i], buffer_object) # calculate if intersect with object
@@ -153,13 +209,25 @@ def manager(cam_queue, camera: str = 'view-IP1.mp4', cam_index=0):
                 box = boxes[i]
                 cv2.rectangle(img, (box[1], box[0]), (box[3], box[2]), color, 2)
                 cv2.putText(img,
-                            TARGET_CLASSES.get(classes[i]),
+                            TARGET_CLASSES.get(classes[i])["id"],
                             (box[1], box[0]),
                             1,
                             2,
                             color,
                             2,
                             cv2.LINE_AA)
+                score += TARGET_CLASSES.get(classes[i])["weight"]
+                if doesIntersect:
+                    intersection_log.append(str(TARGET_CLASSES.get(classes[i])["id"]))
+            
+        log_interval_counter += 1
+        if log_interval_counter >= (VERBOSE*30):
+            logger(cam_index, score, intersection_log)
+            log_interval_counter = 0
+            score = 0
+            intersection_log = []
+            print('Log recorded')
+        # print(score)
 
         while cam_queue.full():
             pass
@@ -254,7 +322,8 @@ def calculate_intersection(i, classes_i, boxes_i, data):
     classes = [item[2] for item in data]
 
     ymin_i,xmin_i,ymax_i,xmax_i  = boxes_i[0],boxes_i[1],boxes_i[2],boxes_i[3]
-    
+
+    intersection = False    
 
     for ind in range(len(data)):
         
@@ -265,13 +334,14 @@ def calculate_intersection(i, classes_i, boxes_i, data):
         ymax = boxx[2] 
         xmax = boxx[3]
 
+
         #Calculate of the intersections
         if ((xmin_i >= xmax) or (xmax_i <= xmin) or (ymin_i >= ymax) or (ymax_i <= ymin)):
             intersection = False
         else:
             intersection = True
             break
-
+        
         # if classes_i != 1:
             # print(classes_i)
             # with open('test_boxes.txt', 'w') as file:
@@ -287,10 +357,28 @@ def calculate_intersection(i, classes_i, boxes_i, data):
     return intersection
 
 
+def logger(cam_index, score=0, intersection_log=[]):
+    # print(f'Dentro:{intersection_log}')
+    with open('log_file.txt', 'a') as file:
+        file.write(f"---------------------\nCamera {cam_index}:\n")
+        file.write(f"Attention Score: {score}\n")
+        # if intersection_log is not None:
+        if intersection_log:
+            intersection_log = set(intersection_log)
+            intersection_log.remove('person')
+            file.write(f'People interacted with: \n')
+            for item in intersection_log:
+                # if item == 'person':
+                #     pass
+                file.write(f'{item}\n')
+        file.write(f'\n')
+
+
 if __name__ == "__main__":
-    # cameras = ['/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000200_01_000226_000268.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000004.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000102.mp4']  # '/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4']
-    cameras = ['/home/auqua/Neural-Network/human-detection-cnn/VIRAT_S_010003_00_000000_000108.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000200_06_001693_001824.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000102.mp4']
+    
+    cameras = ['/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000006.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000102.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000200_06_001693_001824.mp4']
     # cameras = ['/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4']
+    # cameras = ['/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4', '/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4', '/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4']
     threads = []
     queues = []
     counter = 0
@@ -300,7 +388,7 @@ if __name__ == "__main__":
         counter += 1
     for index, thread in enumerate(threads):
         thread.start()
-        print(f"camera {index} started")
+        # print(f"camera {index} started")
 
     videorecorder = cv2.VideoWriter('video_multi.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 10.0, (1280, 720))
     while True:
