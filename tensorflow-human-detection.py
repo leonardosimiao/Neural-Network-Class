@@ -97,6 +97,10 @@ def manager(cam_queue, camera: str = 'view-IP1.mp4', cam_index=0):
     prev_frame_time = 0
     new_frame_time = 0
 
+    buffer_human = []
+    buffer_object = []
+    BUFFER_SIZE = 20
+
     # sct = mss.mss()
     while True:
         new_frame_time = time.time()
@@ -115,20 +119,45 @@ def manager(cam_queue, camera: str = 'view-IP1.mp4', cam_index=0):
         boxes, scores, classes, num = odapi.processFrame(img)
         cv2.putText(img, fps, (7, 70), 1, 3, (100, 255, 0), 3, cv2.LINE_AA)
 
+        data_human = [item for item in zip(boxes[:num], scores[:num], classes[:num]) if (item[2]==1 and item[1]>threshold)]
+        data_object = [item for item in zip(boxes[:num], scores[:num], classes[:num]) if ((item[2] in TARGET_CLASSES.keys()) and item[2]!=1 and item[1]>threshold)]
+
+        # print(f'num: {num}, human:{len(data_human)}, obj:{len(data_object)} , class:{sum(classes)}')
+
+        buffer_human = data_human + buffer_human
+        if len(buffer_human) >= BUFFER_SIZE:
+            buffer_human = buffer_human[:BUFFER_SIZE]
+        
+        buffer_object = data_object + buffer_object
+        if len(buffer_object) >= BUFFER_SIZE:
+            buffer_object = buffer_object[:BUFFER_SIZE]
         # Visualization of the results of a detection.
 
-        for i in range(len(boxes)):
+        for i in range(num):  # range(len(boxes)):
+            if classes[i] == 1: # if human
+                doesIntersect = calculate_intersection(i, classes[i], boxes[i], buffer_object) # calculate if intersect with object
+            # else:
+            elif classes[i] in TARGET_CLASSES.keys():
+                doesIntersect = calculate_intersection(i, classes[i], boxes[i], buffer_human)
+            
+            # Class 1 represents human
+            # if classes[i] == 1 and scores[i] > threshold:
+            if doesIntersect:
+                color = (0, 0, 255)
+            else:
+                color = (255, 0 , 0)
+
             # Class 1 represents human
             # if classes[i] == 1 and scores[i] > threshold:
             if classes[i] in TARGET_CLASSES.keys() and scores[i] > threshold:
                 box = boxes[i]
-                cv2.rectangle(img, (box[1], box[0]), (box[3], box[2]), (255, 0, 0), 2)
+                cv2.rectangle(img, (box[1], box[0]), (box[3], box[2]), color, 2)
                 cv2.putText(img,
                             TARGET_CLASSES.get(classes[i]),
                             (box[1], box[0]),
                             1,
                             2,
-                            (255, 0, 0),
+                            color,
                             2,
                             cv2.LINE_AA)
 
@@ -216,8 +245,51 @@ def concat_tile_resize(im_list_2d, interpolation=cv2.INTER_CUBIC):
     return vconcat_resize_min(im_list_v, interpolation=interpolation)
 
 
+
+def calculate_intersection(i, classes_i, boxes_i, data):
+    #Variable which tells if the hands and objects bounding boxes are being intersected
+    # boxes, scores, classes = data
+    boxes = [item[0] for item in data]
+    scores = [item[1] for item in data]
+    classes = [item[2] for item in data]
+
+    ymin_i,xmin_i,ymax_i,xmax_i  = boxes_i[0],boxes_i[1],boxes_i[2],boxes_i[3]
+    
+
+    for ind in range(len(data)):
+        
+        # ymin,xmin,ymax,xmax = boxes[ind][0],boxes[ind][1],boxes[ind][2],boxes[ind][3]
+        boxx = boxes[ind]
+        ymin = boxx[0]
+        xmin = boxx[1] 
+        ymax = boxx[2] 
+        xmax = boxx[3]
+
+        #Calculate of the intersections
+        if ((xmin_i >= xmax) or (xmax_i <= xmin) or (ymin_i >= ymax) or (ymax_i <= ymin)):
+            intersection = False
+        else:
+            intersection = True
+            break
+
+        # if classes_i != 1:
+            # print(classes_i)
+            # with open('test_boxes.txt', 'w') as file:
+            #     file.write('bike')
+            #     file.write(f'{xmin_i}, {xmax_i}, {ymin_i}, {ymax_i}')
+            #     file.write('\n')
+            #     file.write(f'Intersection: {intersection} \n')
+            #     for item in boxes:
+            #         file.write(f'{item[1]}, {item[3]}, {item[0]}, {item[2]}')
+            #         file.write('\n')
+            #     file.write('End \n \n \n \n \n')
+            # file.close()
+    return intersection
+
+
 if __name__ == "__main__":
-    cameras = ['/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000200_01_000226_000268.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000004.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000102.mp4']  # '/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4']
+    # cameras = ['/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000200_01_000226_000268.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000004.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000102.mp4']  # '/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4']
+    cameras = ['/home/auqua/Neural-Network/human-detection-cnn/VIRAT_S_010003_00_000000_000108.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000200_06_001693_001824.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000102.mp4']
     # cameras = ['/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4']
     threads = []
     queues = []
