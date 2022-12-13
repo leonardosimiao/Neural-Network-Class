@@ -92,6 +92,7 @@ class DetectorAPI:
 def manager(cam_queue, camera: str = 'view-IP1.mp4', cam_index=0):
     odapi = DetectorAPI(path_to_ckpt=model_path)
     cap = cv2.VideoCapture(camera)
+    
     bounding_box = {'top': 0, 'left': 0, 'width': 1920, 'height': 1080}
     prev_frame_time = 0
     new_frame_time = 0
@@ -216,7 +217,7 @@ def concat_tile_resize(im_list_2d, interpolation=cv2.INTER_CUBIC):
 
 
 if __name__ == "__main__":
-    cameras = ['/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000004.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000002.mp4', '/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4']
+    cameras = ['/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000200_01_000226_000268.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000004.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000102.mp4']  # '/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4']
     # cameras = ['/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4']
     threads = []
     queues = []
@@ -229,6 +230,7 @@ if __name__ == "__main__":
         thread.start()
         print(f"camera {index} started")
 
+    videorecorder = cv2.VideoWriter('video_multi.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 10.0, (1280, 720))
     while True:
         if all([queue.full() for queue in queues]):
             imgs = {}
@@ -246,6 +248,7 @@ if __name__ == "__main__":
             else:
                 img = imgs.get(0)
             cv2.imshow(f"cameras", img)
+            videorecorder.write(img)
             key = cv2.waitKey(1)
             if key & 0xFF == ord('q'):
                 break
@@ -254,5 +257,7 @@ if __name__ == "__main__":
         
     for thread in threads:
         # print('it is here')
-        thread.join()
+        # thread.join()
+        thread.terminate()
         # print('it is here')
+    videorecorder.release()
