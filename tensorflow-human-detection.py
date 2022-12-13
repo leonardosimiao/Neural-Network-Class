@@ -123,10 +123,11 @@ if __name__ == "__main__":
     model_path = '/home/auqua/Neural-Network/human-detection-cnn/faster_rcnn_inception_v2_coco_2018_01_28/frozen_inference_graph.pb'
     odapi = DetectorAPI(path_to_ckpt=model_path)
     threshold = 0.5  # 0.7
-    cap = cv2.VideoCapture('/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000001.mp4')
+    # cap = cv2.VideoCapture('/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000200_06_001693_001824.mp4')
     # cap = cv2.VideoCapture('/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000102.mp4')
+    # cap = cv2.VideoCapture('/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000200_01_000226_000268.mp4')
     # cap = cv2.VideoCapture('/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000101.mp4')
-    # cap = cv2.VideoCapture('/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4')
+    cap = cv2.VideoCapture('/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4')
     # bounding_box = {'top': 0, 'left': 0, 'width': 1920, 'height': 1080}
     prev_frame_time = 0
     new_frame_time = 0
@@ -136,6 +137,9 @@ if __name__ == "__main__":
     BUFFER_SIZE = 20
 
     sct = mss.mss()
+
+    # record video
+    videorecord = cv2.VideoWriter('camera.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 10.0, (1280, 720))
     # count = 1
     # while count > 0:
     #     count = -1
@@ -203,6 +207,10 @@ if __name__ == "__main__":
                             cv2.LINE_AA)
 
         cv2.imshow("preview", img)
+        videorecord.write(img)
         key = cv2.waitKey(1)
         if key & 0xFF == ord('q'):
             break
+
+    cap.release()
+    videorecord.release()
