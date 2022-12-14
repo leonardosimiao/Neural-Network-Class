@@ -4,25 +4,87 @@
 
 import numpy as np
 import tensorflow as tf
-import mss
 import cv2
 import time
+import mss
+from multiprocessing import Process, Queue
+from math import ceil
+from time import sleep
 
-TARGET_CLASSES = {  # Classes shown here will be displayed in video
-    1: "person",
-    2: "bicycle",
-    3: "car",
-    17: "cat",
-    18: "dog",
-    27: "backpack",
-    # 28: "umbrella",
-    # 72: "tv",
-    # 73: "laptop",
-    # 74: "mouse",
-    # 75: "remote",
-    # 76: "keyboard",
-    # 77: "cell phone",
-    84: "book",
+gpus = tf.config.experimental.list_physical_devices('GPU')
+for gpu in gpus:
+    tf.config.experimental.set_memory_growth(gpu, True)
+
+
+model_path = '/home/auqua/Neural-Network/human-detection-cnn/faster_rcnn_inception_v2_coco_2018_01_28/frozen_inference_graph.pb'
+threshold = 0.7
+
+# TARGET_CLASSES = {
+#     1: "person",
+#     2: "bicycle",
+#     3: "car",
+#     17: "cat",
+#     18: "dog",
+#     27: "backpack",
+#     28: "umbrella",
+#     72: "tv",
+#     73: "laptop",
+#     74: "mouse",
+#     75: "remote",
+#     76: "keyboard",
+#     77: "cell phone",
+#     84: "book",
+# }
+
+TARGET_CLASSES = {
+    1: {
+        "id": "person",
+        "weight": 10,
+    },
+    2: {
+        "id": "bicycle",
+        "weight": 3,
+    },
+    3: {
+        "id": "car",
+        "weight": 9,
+    },
+    27: {
+        "id": "backpack",
+        "weight": 1,
+    },
+    28: {
+        "id": "umbrella",
+        "weight": 2,
+    },
+    72: {
+        "id": "tv",
+        "weight": 5,
+    },
+    73: {
+        "id": "laptop",
+        "weight": 6
+    },
+    74: {
+        "id": "mouse",
+        "weight": 4,
+    },
+    75: {
+        "id": "remote",
+        "weight": 1
+    },
+    76: {
+        "id": "keyboard",
+        "weight": 1,
+    },
+    77: {
+        "id": "cell phone",
+        "weight": 3,
+    },
+    84: {
+        "id": "book",
+        "weight": 1,
+    },
 }
 
 
@@ -75,7 +137,183 @@ class DetectorAPI:
 
     def close(self):
         self.sess.close()
-        self.default_graph.close
+        self.default_graph.close()
+
+
+def manager(cam_queue, camera: str = 'view-IP1.mp4', cam_index=0):
+    odapi = DetectorAPI(path_to_ckpt=model_path)
+    cap = cv2.VideoCapture(camera)
+    
+    bounding_box = {'top': 0, 'left': 0, 'width': 1920, 'height': 1080}
+    prev_frame_time = 0
+    new_frame_time = 0
+
+    buffer_human = []
+    buffer_object = []
+    BUFFER_SIZE = 20
+
+    # sct = mss.mss()
+    score = 0
+    intersection_log = []
+    log_interval_counter = 0
+    VERBOSE = 1 #how many logs per second
+    while True:
+        # score = 0
+        new_frame_time = time.time()
+        fps = 1 / (new_frame_time - prev_frame_time)
+        prev_frame_time = new_frame_time
+        fps = str(int(fps))
+        r, img = cap.read()
+        # sct_img = sct.grab(bounding_box)
+        # img_png = mss.tools.to_png(sct_img.rgb, sct_img.size)
+        # nparr = np.frombuffer(img_png, np.uint8)
+        # img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        # img = cv2.imread(img_png)
+        if img is None:
+            break
+        img = cv2.resize(img, (1280, 720))
+        boxes, scores, classes, num = odapi.processFrame(img)
+        cv2.putText(img, fps, (7, 70), 1, 3, (100, 255, 0), 3, cv2.LINE_AA)
+
+        data_human = [item for item in zip(boxes[:num], scores[:num], classes[:num]) if (item[2]==1 and item[1]>threshold)]
+        data_object = [item for item in zip(boxes[:num], scores[:num], classes[:num]) if ((item[2] in TARGET_CLASSES.keys()) and item[2]!=1 and item[1]>threshold)]
+
+        # print(f'num: {num}, human:{len(data_human)}, obj:{len(data_object)} , class:{sum(classes)}')
+
+        buffer_human = data_human + buffer_human
+        if len(buffer_human) >= BUFFER_SIZE:
+            buffer_human = buffer_human[:BUFFER_SIZE]
+        
+        buffer_object = data_object + buffer_object
+        if len(buffer_object) >= BUFFER_SIZE:
+            buffer_object = buffer_object[:BUFFER_SIZE]
+        # Visualization of the results of a detection.
+        doesIntersect = False
+        for i in range(num):  # range(len(boxes)):
+            if classes[i] == 1: # if human
+                doesIntersect = calculate_intersection(i, classes[i], boxes[i], buffer_object) # calculate if intersect with object
+            # else:
+            elif classes[i] in TARGET_CLASSES.keys():
+                doesIntersect = calculate_intersection(i, classes[i], boxes[i], buffer_human)
+            
+            # Class 1 represents human
+            # if classes[i] == 1 and scores[i] > threshold:
+            if doesIntersect:
+                color = (0, 0, 255)
+            else:
+                color = (255, 0 , 0)
+
+        for i in range(len(boxes)):
+            # Class 1 represents human
+            # if classes[i] == 1 and scores[i] > threshold:
+            if classes[i] in TARGET_CLASSES.keys() and scores[i] > threshold:
+                box = boxes[i]
+                cv2.rectangle(img, (box[1], box[0]), (box[3], box[2]), color, 2)
+                cv2.putText(img,
+                            TARGET_CLASSES.get(classes[i]),
+                            (box[1], box[0]),
+                            1,
+                            2,
+                            color,
+                            2,
+                            cv2.LINE_AA)
+                score += TARGET_CLASSES.get(classes[i])["weight"]
+                if doesIntersect:
+                    intersection_log.append(str(TARGET_CLASSES.get(classes[i])["id"]))
+            
+        log_interval_counter += 1
+        if log_interval_counter >= (VERBOSE*30):
+            logger(cam_index, score, intersection_log)
+            log_interval_counter = 0
+            score = 0
+            intersection_log = []
+            print('Log recorded')
+        # print(score)
+
+        while cam_queue.full():
+            pass
+            sleep(.1)
+        img = cv2.resize(img, [640, 480])
+        cam_queue.put(img)
+
+
+def assemble_layouts(layout, n_figures):
+    layouts = []
+    for setting in layout:
+        if "adjust" in setting:
+            diff = 0
+            for layout in layouts:
+                diff += layout[0] * layout[1]
+            remaining_figures = n_figures - diff
+            layouts.extend(get_rect_layouts(remaining_figures))
+            break
+        else:
+            layouts.append((int(setting[0]), int(setting[1])))
+
+    diff = n_figures - len(layouts)  # might be dangerous
+    if diff and "adjust" not in layout:
+        for _ in range(diff):
+            layouts.append(layouts[-1])
+
+    return layouts
+
+
+def get_rect_layouts(n_figures):
+    layouts = []
+    max_lines = 2
+    max_columns = 4
+    max_figs = 8
+    while n_figures:
+        layouts.append(
+            (
+                max_lines, ceil(n_figures / max_lines) if n_figures < max_figs else max_columns
+            )
+        )
+        n_figures -= n_figures if n_figures < max_figs else max_figs
+
+    return layouts
+
+
+def get_concat(
+        figures,
+        layouts
+):
+    figs = []
+    counter = 0
+    while figures:
+        layout = layouts[counter]
+        n_rows = layout[0]
+        n_columns = layout[1]
+        slice_size = n_rows * n_columns
+        fig_slice = figures[:slice_size]
+        del figures[:slice_size]
+        org = []
+        for current_row in range(1, n_rows + 1):
+            org.append(fig_slice[n_columns * (current_row - 1):n_columns * current_row])
+        figs.append(concat_tile_resize(org))
+        counter += 1
+    return figs
+
+
+def vconcat_resize_min(im_list, interpolation=cv2.INTER_CUBIC):
+    w_min = min(im.shape[1] for im in im_list)
+    im_list_resize = [cv2.resize(im, (w_min, int(im.shape[0] * w_min / im.shape[1])), interpolation=interpolation)
+                      for im in im_list]
+    return cv2.vconcat(im_list_resize)
+
+
+def hconcat_resize_min(im_list, interpolation=cv2.INTER_CUBIC):
+    h_min = min(im.shape[0] for im in im_list)
+    im_list_resize = [cv2.resize(im, (int(im.shape[1] * h_min / im.shape[0]), h_min), interpolation=interpolation)
+                      for im in im_list]
+    return cv2.hconcat(im_list_resize)
+
+
+def concat_tile_resize(im_list_2d, interpolation=cv2.INTER_CUBIC):
+    im_list_v = [hconcat_resize_min(im_list_h, interpolation=interpolation) for im_list_h in im_list_2d]
+    return vconcat_resize_min(im_list_v, interpolation=interpolation)
+
+
 
 def calculate_intersection(i, classes_i, boxes_i, data):
     #Variable which tells if the hands and objects bounding boxes are being intersected
@@ -85,7 +323,8 @@ def calculate_intersection(i, classes_i, boxes_i, data):
     classes = [item[2] for item in data]
 
     ymin_i,xmin_i,ymax_i,xmax_i  = boxes_i[0],boxes_i[1],boxes_i[2],boxes_i[3]
-    
+
+    intersection = False    
 
     for ind in range(len(data)):
         
@@ -96,13 +335,14 @@ def calculate_intersection(i, classes_i, boxes_i, data):
         ymax = boxx[2] 
         xmax = boxx[3]
 
+
         #Calculate of the intersections
         if ((xmin_i >= xmax) or (xmax_i <= xmin) or (ymin_i >= ymax) or (ymax_i <= ymin)):
             intersection = False
         else:
             intersection = True
             break
-
+        
         # if classes_i != 1:
             # print(classes_i)
             # with open('test_boxes.txt', 'w') as file:
@@ -118,99 +358,67 @@ def calculate_intersection(i, classes_i, boxes_i, data):
     return intersection
 
 
+def logger(cam_index, score=0, intersection_log=[]):
+    # print(f'Dentro:{intersection_log}')
+    with open('log_file.txt', 'a') as file:
+        file.write(f"---------------------\nCamera {cam_index}:\n")
+        file.write(f"Attention Score: {score}\n")
+        # if intersection_log is not None:
+        if intersection_log:
+            intersection_log = set(intersection_log)
+            intersection_log.remove('person')
+            file.write(f'People interacted with: \n')
+            for item in intersection_log:
+                # if item == 'person':
+                #     pass
+                file.write(f'{item}\n')
+        file.write(f'\n')
+
+
 if __name__ == "__main__":
-    # model_path = 'faster_rcnn_inception_v2_coco_2018_01_28/frozen_inference_graph.pb'
-    model_path = '/home/auqua/Neural-Network/human-detection-cnn/faster_rcnn_inception_v2_coco_2018_01_28/frozen_inference_graph.pb'
-    odapi = DetectorAPI(path_to_ckpt=model_path)
-    threshold = 0.5  # 0.7
-    # cap = cv2.VideoCapture('/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000200_06_001693_001824.mp4')
-    # cap = cv2.VideoCapture('/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000102.mp4')
-    # cap = cv2.VideoCapture('/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000200_01_000226_000268.mp4')
-    # cap = cv2.VideoCapture('/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000101.mp4')
-    cap = cv2.VideoCapture('/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4')
-    # bounding_box = {'top': 0, 'left': 0, 'width': 1920, 'height': 1080}
-    prev_frame_time = 0
-    new_frame_time = 0
+    
+    cameras = ['/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000006.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000102.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000200_06_001693_001824.mp4']
+    # cameras = ['/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4']
+    # cameras = ['/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4', '/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4', '/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4']
+    threads = []
+    queues = []
+    counter = 0
+    for cam in cameras:
+        queues.append(Queue(1))
+        threads.append(Process(target=manager, args=(queues[-1], cam, counter)))
+        counter += 1
+    for index, thread in enumerate(threads):
+        thread.start()
+        # print(f"camera {index} started")
 
-    buffer_human = []
-    buffer_object = []
-    BUFFER_SIZE = 20
-
-    sct = mss.mss()
-
-    # record video
-    videorecord = cv2.VideoWriter('camera.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 10.0, (1280, 720))
-    # count = 1
-    # while count > 0:
-    #     count = -1
+    videorecorder = cv2.VideoWriter('video_multi.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 10.0, (1280, 720))
     while True:
-        new_frame_time = time.time()
-        fps = 1 / (new_frame_time - prev_frame_time)
-        prev_frame_time = new_frame_time
-        fps = str(int(fps))
-        r, img = cap.read()
-        # sct_img = sct.grab(bounding_box)
-        # img_png = mss.tools.to_png(sct_img.rgb, sct_img.size)
-        # nparr = np.frombuffer(img_png, np.uint8)
-        # img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        # img = cv2.imread(img_png)
-        if img is None:
-            break
-        img = cv2.resize(img, (1280, 720))
-        boxes, scores, classes, num = odapi.processFrame(img)
+        if all([queue.full() for queue in queues]):
+            imgs = {}
+            for index, queue in enumerate(queues):
+                imgs.update({index: queue.get(True)})
 
-        data_human = [item for item in zip(boxes[:num], scores[:num], classes[:num]) if (item[2]==1 and item[1]>threshold)]
-        data_object = [item for item in zip(boxes[:num], scores[:num], classes[:num]) if ((item[2] in TARGET_CLASSES.keys()) and item[2]!=1 and item[1]>threshold)]
+            layouts = assemble_layouts(["adjust"], len(imgs.keys()))
 
-        # print(f'num: {num}, human:{len(data_human)}, obj:{len(data_object)} , class:{sum(classes)}')
-
-        buffer_human = data_human + buffer_human
-        if len(buffer_human) >= BUFFER_SIZE:
-            buffer_human = buffer_human[:BUFFER_SIZE]
-        
-        buffer_object = data_object + buffer_object
-        if len(buffer_object) >= BUFFER_SIZE:
-            buffer_object = buffer_object[:BUFFER_SIZE]
-
-        # boxes_nonzero = boxes[:num]
-
-        cv2.putText(img, fps, (7, 70), 1, 3, (100, 255, 0), 3, cv2.LINE_AA)
-
-        # Visualization of the results of a detection.
-
-        for i in range(num):  # range(len(boxes)):
-            # Changes color of intersecting people and objects
-
-            if classes[i] == 1: # if human
-                doesIntersect = calculate_intersection(i, classes[i], boxes[i], buffer_object) # calculate if intersect with object
-            # else:
-            elif classes[i] in TARGET_CLASSES.keys():
-                doesIntersect = calculate_intersection(i, classes[i], boxes[i], buffer_human)
-            
-            # Class 1 represents human
-            # if classes[i] == 1 and scores[i] > threshold:
-            if doesIntersect:
-                color = (0, 0, 255)
+            if len(list(imgs.values())) > 1:
+                figs = get_concat(
+                    [fig for fig in imgs.values()],
+                    layouts,
+                )
+                img = cv2.resize(figs[0], (1280, 720))
             else:
-                color = (255, 0 , 0)
-            
-            if classes[i] in TARGET_CLASSES.keys() and scores[i] > threshold:
-                box = boxes[i]
-                cv2.rectangle(img, (box[1], box[0]), (box[3], box[2]), color, 2)
-                cv2.putText(img,
-                            TARGET_CLASSES.get(classes[i]),
-                            (box[1], box[0]),
-                            1,
-                            2,
-                            color,  # (255, 0, 0),
-                            2,
-                            cv2.LINE_AA)
-
-        cv2.imshow("preview", img)
-        videorecord.write(img)
-        key = cv2.waitKey(1)
-        if key & 0xFF == ord('q'):
-            break
-
-    cap.release()
-    videorecord.release()
+                img = imgs.get(0)
+            cv2.imshow(f"cameras", img)
+            videorecorder.write(img)
+            key = cv2.waitKey(1)
+            if key & 0xFF == ord('q'):
+                break
+        else:
+            sleep(.1)
+        
+    for thread in threads:
+        # print('it is here')
+        # thread.join()
+        thread.terminate()
+        # print('it is here')
+    videorecorder.release()
