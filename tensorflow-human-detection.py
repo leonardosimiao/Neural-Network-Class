@@ -203,14 +203,14 @@ def manager(cam_queue, camera: str = 'view-IP1.mp4', cam_index=0):
             else:
                 color = (255, 0 , 0)
 
-        for i in range(len(boxes)):
+        # for i in range(len(boxes)):
             # Class 1 represents human
             # if classes[i] == 1 and scores[i] > threshold:
             if classes[i] in TARGET_CLASSES.keys() and scores[i] > threshold:
                 box = boxes[i]
                 cv2.rectangle(img, (box[1], box[0]), (box[3], box[2]), color, 2)
                 cv2.putText(img,
-                            TARGET_CLASSES.get(classes[i]),
+                            TARGET_CLASSES.get(classes[i])["id"],
                             (box[1], box[0]),
                             1,
                             2,
