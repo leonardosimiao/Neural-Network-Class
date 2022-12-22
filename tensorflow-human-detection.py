@@ -16,7 +16,7 @@ for gpu in gpus:
     tf.config.experimental.set_memory_growth(gpu, True)
 
 
-model_path = '/home/auqua/Neural-Network/human-detection-cnn/faster_rcnn_inception_v2_coco_2018_01_28/frozen_inference_graph.pb'
+model_path = 'faster_rcnn_inception_v2_coco_2018_01_28/frozen_inference_graph.pb'
 threshold = 0.7
 
 # TARGET_CLASSES = {
@@ -377,9 +377,9 @@ def logger(cam_index, score=0, intersection_log=[]):
 
 if __name__ == "__main__":
     
-    cameras = ['/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000006.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000102.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000200_06_001693_001824.mp4']
+    # cameras = ['/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000006.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000102.mp4', '/home/auqua/Neural-Network/human-detection-cnn/videos/VIRAT_S_000200_06_001693_001824.mp4']
     # cameras = ['/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4']
-    # cameras = ['/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4', '/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4', '/home/auqua/Neural-Network/human-detection-cnn/view-IP1.mp4']
+    cameras = ['view-IP1.mp4', 'view-IP1.mp4', 'view-IP1.mp4']
     threads = []
     queues = []
     counter = 0
