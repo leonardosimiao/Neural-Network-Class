@@ -54,7 +54,7 @@ if __name__ == "__main__":
     # to terminate processes properly, press "q" on cv2 window
     cameras = [
         'view-IP1.mp4',
-        {'top': 0, 'left': 0, 'width': 1920, 'height': 1080},
+        # {'top': 0, 'left': 0, 'width': 1920, 'height': 1080},
     ]  # add path to videos or bounding boxes to start processes
     fig_qs = []
     processes = [Process(target=display_cameras, args=(fig_qs,))]

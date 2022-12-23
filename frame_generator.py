@@ -5,6 +5,7 @@ import mss  # only necessary if using screenshots
 import numpy as np
 from multiprocessing import Queue
 from detector import DetectorAPI
+from overlap_checker import check_overlap, manage_buffers, highlight_overlap
 
 sct = mss.mss()
 
@@ -51,6 +52,8 @@ def generate_frame(
 ) -> None:
     prev_frame_time = 0
     new_frame_time = 0
+    human_buffer = []
+    object_buffer = []
 
     while True:
         if show_fps:
@@ -58,19 +61,25 @@ def generate_frame(
         score = 0
         img, boxes, scores, classes, num = queue.get(True)
 
+        human_buffer, object_buffer = manage_buffers(boxes, scores, classes, num, human_buffer, object_buffer)
         # Visualization of the results of a detection.
 
-        for i in range(len(boxes)):
+        for i in range(num):
             # Class 1 represents human
             if classes[i] in TARGET_CLASSES.keys() and scores[i] > threshold:
                 box = boxes[i]
+                if TARGET_CLASSES.get(classes[i])["id"] == "person":
+                    overlap = check_overlap(box_to_check=box, box_buffer=object_buffer)
+                else:
+                    overlap = check_overlap(box_to_check=box, box_buffer=human_buffer)
+                color = highlight_overlap(overlap)
                 cv2.rectangle(img, (box[1], box[0]), (box[3], box[2]), (255, 0, 0), 2)
                 cv2.putText(img,
                             TARGET_CLASSES.get(classes[i])["id"],
                             (box[1], box[0]),
                             1,
                             2,
-                            (255, 0, 0),
+                            color,
                             2,
                             cv2.LINE_AA)
                 score += TARGET_CLASSES.get(classes[i])["weight"]
