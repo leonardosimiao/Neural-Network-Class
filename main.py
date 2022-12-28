@@ -18,6 +18,7 @@ from settings import model_path
 
 
 def display_cameras(queues: list[Queue, ...]) -> None:
+    """Manages the display interface"""
     imgs = {}
     while True:
         for index, queue in enumerate(queues):
@@ -40,6 +41,7 @@ def manager(
         camera: str | dict,
         fig_queue: Queue,
 ) -> None:
+    "Manages the camera inputs, that can be videos or screenshots"
     q = Queue(1)
     api = DetectorAPI(model_path)
     threads = [

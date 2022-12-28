@@ -11,7 +11,7 @@ sct = mss.mss()
 
 
 def get_screenshot(bounding_box: dict) -> None:
-    # takes screenshot of specified region of the screen, much slower than capturing from video
+    """Takes screenshot of specified region of the screen. Much slower than capturing from video"""
     sct_img = sct.grab(bounding_box)
     img_png = mss.tools.to_png(sct_img.rgb, sct_img.size)
     nparr = np.frombuffer(img_png, np.uint8)
@@ -50,6 +50,8 @@ def generate_frame(
         fig_queue: Queue,
         show_fps=True
 ) -> None:
+    """Modify frames from videos to add fps and detections' bounding boxes"""
+    
     prev_frame_time = 0
     new_frame_time = 0
     human_buffer = []
