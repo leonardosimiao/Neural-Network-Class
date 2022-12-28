@@ -36,7 +36,7 @@ def display_cameras(queues: list[Queue, ...]) -> None:
             break
 
 
-def main(
+def manager(
         camera: str | dict,
         fig_queue: Queue,
 ) -> None:
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     processes = [Process(target=display_cameras, args=(fig_qs,))]
     for cam in cameras:
         fig_qs.append(Queue(1))
-        processes.append(Process(target=main, args=(cam, fig_qs[-1])))
+        processes.append(Process(target=manager, args=(cam, fig_qs[-1])))
     for index, process in enumerate(processes):
         process.start()
         print(f"camera {index} started")
