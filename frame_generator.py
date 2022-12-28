@@ -73,7 +73,7 @@ def generate_frame(
                 else:
                     overlap = check_overlap(box_to_check=box, box_buffer=human_buffer)
                 color = highlight_overlap(overlap)
-                cv2.rectangle(img, (box[1], box[0]), (box[3], box[2]), (255, 0, 0), 2)
+                cv2.rectangle(img, (box[1], box[0]), (box[3], box[2]), color, 2)
                 cv2.putText(img,
                             TARGET_CLASSES.get(classes[i])["id"],
                             (box[1], box[0]),

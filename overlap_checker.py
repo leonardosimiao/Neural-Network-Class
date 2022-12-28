@@ -50,11 +50,14 @@ def manage_buffers(
 
     for i in range(num):
         if score[i] < threshold:  # skip detections that don't pass the threshold
-            pass
+            continue
+        if classes[i] not in TARGET_CLASSES.keys():  # skip if not one of selected classes
+            continue
         if TARGET_CLASSES.get(classes[i])["id"] == "person":  # if it is a person
             human_boxes.append(boxes[i])
-        elif classes[i] in TARGET_CLASSES.keys():  # if it is one of the selected object classes
-            object_boxes.append(boxes[i]) 
+        else:  # if it is one of the selected object classes
+            object_boxes.append(boxes[i])
+
 
     # Put new detections at the beggining of the buffer.
     # If the buffer exceeds size limit, remove detections at the end
