@@ -6,6 +6,7 @@ import numpy as np
 from multiprocessing import Queue
 from detector import DetectorAPI
 from overlap_checker import check_overlap, manage_buffers, highlight_overlap
+from log_manager import manage_log_camera
 
 sct = mss.mss()
 
@@ -47,7 +48,9 @@ def get_frame(
 
 def generate_frame(
         queue: Queue,
+        cam_index: int,
         fig_queue: Queue,
+        log: Queue,
         show_fps=True
 ) -> None:
     """Modify frames from videos to add fps and detections' bounding boxes"""
@@ -60,7 +63,9 @@ def generate_frame(
     while True:
         if show_fps:
             new_frame_time = time.time()
-        score = 0
+        
+        total_weight = 0
+        objects_of_interest = set()  # this set will include all objects whose boxes overlapped persons
         img, boxes, scores, classes, num = queue.get(True)
 
         human_buffer, object_buffer = manage_buffers(boxes, scores, classes, num, human_buffer, object_buffer)
@@ -69,12 +74,18 @@ def generate_frame(
         for i in range(num):
             # Class 1 represents human
             if classes[i] in TARGET_CLASSES.keys() and scores[i] > threshold:
+                
                 box = boxes[i]
+                
                 if TARGET_CLASSES.get(classes[i])["id"] == "person":
                     overlap = check_overlap(box_to_check=box, box_buffer=object_buffer)
                 else:
                     overlap = check_overlap(box_to_check=box, box_buffer=human_buffer)
+                    if overlap:
+                        objects_of_interest.add(TARGET_CLASSES.get(classes[i])["id"])
+                
                 color = highlight_overlap(overlap)
+
                 cv2.rectangle(img, (box[1], box[0]), (box[3], box[2]), color, 2)
                 cv2.putText(img,
                             TARGET_CLASSES.get(classes[i])["id"],
@@ -84,11 +95,15 @@ def generate_frame(
                             color,
                             2,
                             cv2.LINE_AA)
-                score += TARGET_CLASSES.get(classes[i])["weight"]
+                total_weight += TARGET_CLASSES.get(classes[i])["weight"]
+
+        log_message = manage_log_camera(cam_index, objects_of_interest, total_weight)
+        log.put(log_message)
 
         if show_fps:
             fps = 1 / (new_frame_time - prev_frame_time)
             prev_frame_time = new_frame_time
             fps = str(int(fps))
             cv2.putText(img, fps, (7, 70), 1, 3, (100, 255, 0), 3, cv2.LINE_AA)
-        fig_queue.put((img, score), True)
+
+        fig_queue.put((img, total_weight), True)

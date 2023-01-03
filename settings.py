@@ -1,4 +1,5 @@
 model_path = 'faster_rcnn_inception_v2_coco_2018_01_28/frozen_inference_graph.pb'
+log_file = 'log_file.txt'
 MAX_MOSAIC = 4
 BUFFER_SIZE = 20
 threshold = 0.7

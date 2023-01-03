@@ -2,6 +2,7 @@
 # https://github.com/tensorflow/models/blob/master/research/object_detection/object_detection_tutorial.ipynb
 # Tensorflow Object Detection Detector
 
+import time
 import tensorflow as tf
 import cv2.cv2 as cv2
 from multiprocessing import Queue, Process
@@ -10,7 +11,7 @@ from threading import Thread
 from frame_generator import get_frame, generate_frame
 from mosaic_assembler import assemble_mosaic
 from detector import DetectorAPI
-from settings import model_path
+from settings import model_path, log_file
 
 # physical_devices = tf.config.experimental.list_physical_devices('GPU')
 # assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
@@ -37,16 +38,35 @@ def display_cameras(queues: list[Queue, ...]) -> None:
             break
 
 
+def logger(log_messages: Queue) -> None:
+    
+    start_time = time.time()
+    
+    with open(log_file, 'w') as file:
+        file.write(f'Initializing log \n Start time: {start_time}\n')
+    
+    while True:
+        message = log_messages.get(True)
+        print(message)
+        current_time = time.time() - start_time
+        with open(log_file, 'a') as file:
+            file.write(f'Timestamp: {current_time:.2f} \n')
+            file.write(message)
+            
+
+
 def manager(
         camera: str | dict,
+        index: int,
         fig_queue: Queue,
+        log: Queue
 ) -> None:
     "Manages the camera inputs, that can be videos or screenshots"
     q = Queue(1)
     api = DetectorAPI(model_path)
     threads = [
         Thread(target=get_frame, args=(q, camera, api)),
-        Thread(target=generate_frame, args=(q, fig_queue))
+        Thread(target=generate_frame, args=(q, index, fig_queue, log))
     ]
     for t in threads:
         t.start()
@@ -59,10 +79,15 @@ if __name__ == "__main__":
         # {'top': 0, 'left': 0, 'width': 1920, 'height': 1080},
     ]  # add path to videos or bounding boxes to start processes
     fig_qs = []
-    processes = [Process(target=display_cameras, args=(fig_qs,))]
-    for cam in cameras:
+    log = Queue(2)
+    processes = [ 
+        Process(target=display_cameras, args=(fig_qs,)), 
+        Process(target=logger, args=(log,))
+    ]
+
+    for index, cam in enumerate(cameras):
         fig_qs.append(Queue(1))
-        processes.append(Process(target=manager, args=(cam, fig_qs[-1])))
+        processes.append(Process(target=manager, args=(cam, index, fig_qs[-1], log)))
     for index, process in enumerate(processes):
         process.start()
         print(f"camera {index} started")
