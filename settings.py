@@ -12,13 +12,13 @@ TARGET_CLASSES = {
         "id": "bicycle",
         "weight": 3,
     },
+    3: {
+        "id": "car",
+        "weight": 8,
+    },
     27: {
         "id": "backpack",
         "weight": 1,
-    },
-    28: {
-        "id": "umbrella",
-        "weight": 2,
     },
     72: {
         "id": "tv",
