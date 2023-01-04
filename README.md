@@ -32,7 +32,7 @@ The code generates a log that lists the cameras' attention scores and all the in
 
 ## How it was made
 
-The project is based on Inception v2 neural network, by Google. The network was trained using the COCO dataset. The algorithm was tested and debugged using the VIRAT video dataset.
+The project is based on a Faster-RCNN with Inception v2. The network was trained using the COCO dataset. The algorithm was tested and debugged using the [VIRAT Video Dataset](https://viratdata.org/) as inputs.
 
-## How to use
-Execute [main.py](https://github.com/leonardosimiao/Neural-Network-Class/blob/master/main.py) to run the main code. File [settings.py] contains most of the configurations for the algorithm operation. Listed in [requirements.txt](https://github.com/leonardosimiao/Neural-Network-Class/blob/master/requirements.txt) are the libraries that require especific versions.
+## How to use it
+Execute [main.py](https://github.com/leonardosimiao/Neural-Network-Class/blob/master/main.py) to run the main code. File [settings.py](https://github.com/leonardosimiao/Neural-Network-Class/blob/master/settings.py) contains most of the configurations for the algorithm operation. Listed in [requirements.txt](https://github.com/leonardosimiao/Neural-Network-Class/blob/master/requirements.txt) are the libraries that require especific versions.
