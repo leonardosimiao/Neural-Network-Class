@@ -32,7 +32,9 @@ The code generates a log that lists the cameras' attention scores and all the in
 
 ## How it was made
 
-The project is based on a Faster-RCNN with Inception v2. The network was trained using the COCO dataset. The algorithm was tested and debugged using the [VIRAT Video Dataset](https://viratdata.org/) as inputs.
+The project uses a [Faster-RCNN Inception v2](https://github.com/tensorflow/models/blob/ac8d0651935ecf8a5e7c73ff4aaa97ca1b3623b5/research/object_detection/g3doc/tf1_detection_zoo.md) network, trained using the [COCO dataset](https://cocodataset.org/#home). The algorithm was tested and debugged using the [VIRAT Video Dataset](https://viratdata.org/) as inputs.
 
 ## How to use it
 Execute [main.py](https://github.com/leonardosimiao/Neural-Network-Class/blob/master/main.py) to run the main code. File [settings.py](https://github.com/leonardosimiao/Neural-Network-Class/blob/master/settings.py) contains most of the configurations for the algorithm operation. Listed in [requirements.txt](https://github.com/leonardosimiao/Neural-Network-Class/blob/master/requirements.txt) are the libraries that require especific versions.
+
+    python main.py
