@@ -7,18 +7,19 @@ import tensorflow as tf
 import cv2.cv2 as cv2
 from multiprocessing import Queue, Process
 from threading import Thread
+import sys
 
 from frame_generator import get_frame, generate_frame
 from mosaic_assembler import assemble_mosaic
 from detector import DetectorAPI
 from settings import model_path, log_file
 
-# physical_devices = tf.config.experimental.list_physical_devices('GPU')
-# assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
-# config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
+gpus = tf.config.experimental.list_physical_devices('GPU')
+for gpu in gpus:
+    tf.config.experimental.set_memory_growth(gpu, True)
 
 
-def display_cameras(queues: list[Queue, ...]) -> None:
+def display_cameras(queues: list[Queue]) -> None:
     """Manages the display interface"""
     imgs = {}
     while True:
@@ -47,11 +48,13 @@ def logger(log_messages: Queue) -> None:
     
     while True:
         message = log_messages.get(True)
-        print(message)
         current_time = time.time() - start_time
         with open(log_file, 'a') as file:
             file.write(f'Timestamp: {current_time:.2f} \n')
             file.write(message)
+        key = cv2.waitKey(20)
+        if key & 0xFF == ord('q'):
+            break
             
 
 
@@ -74,10 +77,12 @@ def manager(
 
 if __name__ == "__main__":
     # to terminate processes properly, press "q" on cv2 window
+
     cameras = [
         'view-IP1.mp4',
         # {'top': 0, 'left': 0, 'width': 1920, 'height': 1080},
     ]  # add path to videos or bounding boxes to start processes
+
     fig_qs = []
     log = Queue(2)
     processes = [ 
@@ -90,9 +95,23 @@ if __name__ == "__main__":
         processes.append(Process(target=manager, args=(cam, index, fig_qs[-1], log)))
     for index, process in enumerate(processes):
         process.start()
-        print(f"camera {index} started")
+        if index == 0:
+            print('display started')
+            continue
+        if index == 1:
+            print('logger started')
+            continue
+        print(f"camera {index-1} started")  # starts on camera 1
     processes[0].join()  # locks execution until "q" is pressed, then terminates other processes
-    for index, process in enumerate(processes[1:], start=1):
-        print(f"camera {index} finished")
-        # TODO DetectorAPI close function may need to be called before terminating to free up memory
+    for index, process in enumerate(processes):
         process.terminate()
+        # TODO DetectorAPI close function may need to be called before terminating to free up memory
+        if index == 0:
+            print('display closed')
+            continue
+        if index == 1:
+            print('logger closed')
+            continue
+        print(f"camera {index-1} closed")
+        
+        

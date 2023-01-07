@@ -27,7 +27,25 @@ class DetectorAPI:
         self.detection_classes = self.detection_graph.get_tensor_by_name('detection_classes:0')
         self.num_detections = self.detection_graph.get_tensor_by_name('num_detections:0')
 
-    def processFrame(self, image):
+    def processFrame(self, image
+        ) -> tuple[ list[tuple[int]], 
+                    list[float], 
+                    list[int], 
+                    int]:
+        """
+        Process detections in a frame
+
+        Returns:
+        :var boxes: list of detections' bounding boxes
+        :var scores: list of detections' scores
+        :var classes: list of detections' classes
+        :var num: number of detections
+
+        boxes, scores, and classes all have size "nmax"
+
+        [:num] --> actual detections
+        [num:nmax] --> garbage
+        """
         # Expand dimensions since the trained_model expects images to have shape: [1, None, None, 3]
         image_np_expanded = np.expand_dims(image, axis=0)
         # Actual detection.

@@ -3,7 +3,7 @@ from settings import MAX_MOSAIC
 from numpy import ndarray
 
 
-def assemble_mosaic(figures: list[tuple[ndarray, int], ...]) -> list[list[ndarray, ...], list[ndarray]]:
+def assemble_mosaic(figures: list[tuple[ndarray, int]]) -> list[list[ndarray], list[ndarray]]:
     """position cameras in the display according to rank"""
     ranking = [[]]
     max_weight = -1
@@ -21,7 +21,7 @@ def assemble_mosaic(figures: list[tuple[ndarray, int], ...]) -> list[list[ndarra
 
 
 def vconcat_resize_min(
-        im_list: list[ndarray, ...],
+        im_list: list[ndarray],
         interpolation=cv2.INTER_CUBIC
 ) -> ndarray:
     """Resize all rows of camera images to the same width"""
@@ -32,7 +32,7 @@ def vconcat_resize_min(
 
 
 def hconcat_resize_min(
-        im_list: list[ndarray, ...],
+        im_list: list[ndarray],
         interpolation=cv2.INTER_CUBIC
 ) -> ndarray:
     """Resize all camera images in a row to the same height"""
@@ -43,7 +43,7 @@ def hconcat_resize_min(
 
 
 def concat_tile_resize(
-        im_list_2d: list[ndarray, ...],
+        im_list_2d: list[ndarray],
         interpolation=cv2.INTER_CUBIC
 ) -> ndarray:
     """

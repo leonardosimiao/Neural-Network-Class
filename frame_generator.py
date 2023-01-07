@@ -42,7 +42,13 @@ def get_frame(
         elif isinstance(camera, dict):
             img = get_screenshot(camera)
         img = cv2.resize(img, (1280, 720))
+
+        # Process frame
         boxes, scores, classes, num = api.processFrame(img)
+        #    boxes, scores, and classes all have size "nmax"
+        #    [:num] --> actual detections
+        #    [num:nmax] --> garbage
+        
         queue.put((img, boxes, scores, classes, num), True)
 
 
@@ -65,14 +71,14 @@ def generate_frame(
             new_frame_time = time.time()
         
         total_weight = 0
-        objects_of_interest = set()  # this set will include all objects whose boxes overlapped persons
+        objects_of_interest = set()  # this set will include all objects whose boxes overlapped people
         img, boxes, scores, classes, num = queue.get(True)
 
         human_buffer, object_buffer = manage_buffers(boxes, scores, classes, num, human_buffer, object_buffer)
         # Visualization of the results of a detection.
 
         for i in range(num):
-            # Class 1 represents human
+            
             if classes[i] in TARGET_CLASSES.keys() and scores[i] > threshold:
                 
                 box = boxes[i]

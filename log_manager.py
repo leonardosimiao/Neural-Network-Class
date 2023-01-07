@@ -3,7 +3,7 @@ def manage_log_camera(
                 log_overlap: set[str], 
                 total_weight: int
 ) -> str:
-    """Creates message that will be published to log, """
+    """Composes message that will be published to log"""
     cam_header = f"Camera {cam_index}:\n"
     weight_message = f'Attention Score: {total_weight}\n'
     overlap_header = f'People interacted with: \n'
