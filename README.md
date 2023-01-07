@@ -36,6 +36,8 @@ The project uses a [Faster-RCNN Inception v2](https://github.com/tensorflow/mode
 
 ## How to use it
 
-On the directory, exucute command below to run the main code. All the camera inputs must be altered in the code, being inserted as the list **cameras**.
-    $ python main.py
+In the directory, execute command below to run the main code. All the camera inputs must be altered in code, inserted as the list ***cameras***.
+
+    python main.py
+    
 File [settings.py](https://github.com/leonardosimiao/Neural-Network-Class/blob/master/settings.py) contains most of the configurations for the algorithm operation. Listed in [requirements.txt](https://github.com/leonardosimiao/Neural-Network-Class/blob/master/requirements.txt) are the libraries that require especific versions.
