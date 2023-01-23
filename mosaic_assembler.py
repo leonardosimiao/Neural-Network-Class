@@ -10,7 +10,7 @@ def assemble_mosaic(figures: list[tuple[ndarray, int]]) -> list[list[ndarray], l
     max_fig = None
     for figure, weight in figures:
         if weight > max_weight:
-            if max_fig:
+            if max_fig is not None:
                 ranking[0].append(max_fig)
             max_fig = figure
             max_weight = weight
